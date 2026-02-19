@@ -7,8 +7,118 @@ const ROLES = ['Admin', 'Mesero', 'Cocina', 'Barra', 'Cajero'];
 
 const emptyForm = { nombreCompleto: '', username: '', password: '', rol: 'Mesero', activo: true };
 
+const PERIODO_OPTS = [
+  { label: 'Hoy', dias: 1 },
+  { label: '7 días', dias: 7 },
+  { label: '30 días', dias: 30 },
+];
+
+function Reportes({ token }) {
+  const [reporte, setReporte] = useState(null);
+  const [loadingR, setLoadingR] = useState(true);
+  const [error, setError] = useState(false);
+  const [dias, setDias] = useState(1);
+
+  useEffect(() => {
+    setLoadingR(true);
+    setError(false);
+    const h = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    fetch(`${API}/api/Ordenes/reportes?dias=${dias}`, { headers: h })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => { setReporte(data); setLoadingR(false); })
+      .catch(() => { setError(true); setLoadingR(false); });
+  }, [dias, token]);
+
+  if (loadingR) return <p style={{ textAlign: 'center', padding: '60px 0', color: '#6b7280' }}>Cargando reportes...</p>;
+  if (error || !reporte) return <p style={{ textAlign: 'center', padding: '60px 0', color: '#ef4444' }}>Error al cargar reportes. ¿El backend está corriendo?</p>;
+
+  const statCards = [
+    { label: 'Total ventas', value: `$${Number(reporte.totalVentas).toFixed(2)}`, color: '#7c3aed' },
+    { label: 'Efectivo', value: `$${Number(reporte.totalEfectivo).toFixed(2)}`, color: '#2563eb' },
+    { label: 'Tarjeta', value: `$${Number(reporte.totalTarjeta).toFixed(2)}`, color: '#0891b2' },
+    { label: 'Mesas atendidas', value: reporte.mesasAtendidas, color: '#16a34a' },
+  ];
+
+  return (
+    <div>
+      {/* Selector de periodo */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        {PERIODO_OPTS.map(opt => (
+          <button key={opt.dias} onClick={() => setDias(opt.dias)}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', fontWeight: 600, cursor: 'pointer',
+              background: dias === opt.dias ? '#7c3aed' : '#f1f5f9',
+              color: dias === opt.dias ? 'white' : '#475569' }}>
+            {opt.label}
+          </button>
+        ))}
+        <span style={{ alignSelf: 'center', fontSize: 13, color: '#9ca3af', marginLeft: 8 }}>
+          {reporte.desde} → {reporte.hasta}
+        </span>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginBottom: 28 }}>
+        {statCards.map(s => (
+          <div key={s.label} style={{ background: 'white', borderRadius: 12, padding: 20, textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', borderTop: `4px solid ${s.color}` }}>
+            <div style={{ fontSize: 28, fontWeight: 'bold', color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, flexWrap: 'wrap' }}>
+        {/* Platillos más vendidos */}
+        <div style={{ background: 'white', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Platillos más vendidos</h3>
+          {(reporte.platillosMasVendidos || []).length === 0 ? (
+            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>Sin datos</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(reporte.platillosMasVendidos || []).map((p, idx) => (
+                <div key={p.nombre} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: 13, flexShrink: 0,
+                    background: idx === 0 ? '#f59e0b' : idx === 1 ? '#9ca3af' : idx === 2 ? '#f97316' : '#d1d5db' }}>
+                    {idx + 1}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{p.nombre}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{p.cantidad} vendidos</div>
+                  </div>
+                  <div style={{ fontWeight: 'bold', color: '#16a34a', fontSize: 14 }}>${Number(p.total).toFixed(0)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Ventas por mesero */}
+        <div style={{ background: 'white', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>Desempeño por mesero</h3>
+          {(reporte.ventasPorMesero || []).length === 0 ? (
+            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>Sin datos</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(reporte.ventasPorMesero || []).map(m => (
+                <div key={m.mesero} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: '#f8fafc', borderRadius: 8 }}>
+                  <div style={{ fontSize: 20 }}>👤</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{m.mesero}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{m.mesas} {m.mesas === 1 ? 'mesa' : 'mesas'}</div>
+                  </div>
+                  <div style={{ fontWeight: 'bold', color: '#7c3aed', fontSize: 16 }}>${Number(m.total).toFixed(0)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('usuarios');
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -107,7 +217,23 @@ export default function Admin() {
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       <Header title="Administración" />
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+        {[{ id: 'usuarios', label: 'Usuarios' }, { id: 'reportes', label: 'Reportes' }].map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            style={{ flex: 1, maxWidth: 200, padding: '14px 24px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+              background: activeTab === t.id ? '#7c3aed' : 'white',
+              color: activeTab === t.id ? 'white' : '#6b7280' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
+
+        {activeTab === 'reportes' && <Reportes token={user.token} />}
+
+        {activeTab === 'usuarios' && (<>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1e293b' }}>Gestión de Usuarios</h2>
           <button onClick={openCrear}
@@ -167,6 +293,7 @@ export default function Admin() {
             </table>
           </div>
         )}
+        </>)}
       </div>
 
       {modal && (

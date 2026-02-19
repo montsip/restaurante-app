@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRestaurant, menu } from '../../context/RestaurantContext';
+import Header from '../../components/Header';
 
 export default function Mesero() {
   const { orders, addOrder, addItemsToOrder, markItemDelivered, requestBill } = useRestaurant();
@@ -69,9 +70,7 @@ export default function Mesero() {
         </div>
       )}
 
-      <div style={{ background: '#2563eb', color: 'white', padding: '16px 20px' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 'bold', margin: 0 }}>Sistema de Pedidos - Mesero</h1>
-      </div>
+      <Header title="Sistema de Pedidos - Mesero" />
 
       <div style={{ display: 'flex', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
         <button onClick={() => setActiveTab('new')}
@@ -84,6 +83,7 @@ export default function Mesero() {
         </button>
       </div>
 
+      {/* ... resto del código igual ... */}
       {activeTab === 'new' && (
         <div style={{ padding: 16 }}>
           {addingToOrder && (
@@ -99,8 +99,7 @@ export default function Mesero() {
           <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)}
             style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #d1d5db', fontSize: 16, marginBottom: 16 }}>
             <option value="">-- Selecciona una mesa --</option>
-              {mesas.map(m => { const ocupada = orders.some(o => o.table === m) && !addingToOrder; return <option key={m} value={m} disabled={ocupada}>{m}{ocupada ? ' (Ocupada)' : ''}
-            </option>; })}
+            {mesas.map(m => { const ocupada = orders.some(o => o.table === m) && !addingToOrder; return <option key={m} value={m} disabled={ocupada}>{m}{ocupada ? ' (Ocupada)' : ''}</option>; })}
           </select>
 
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useRestaurant } from '../../context/RestaurantContext';
+import Header from '../../components/Header';
 
 export default function Cocina() {
   const { orders, markItemReady } = useRestaurant();
@@ -13,14 +14,11 @@ export default function Cocina() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0fdf4' }}>
-      <div style={{ background: '#16a34a', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 'bold', margin: 0 }}>Cocina - Pedidos Pendientes</h1>
-          <p style={{ margin: 0, fontSize: 14, opacity: 0.8 }}>Solo lo que falta preparar</p>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
-          <div style={{ fontSize: 36, fontWeight: 'bold' }}>{totalPending}</div>
-          <div style={{ fontSize: 12 }}>Pendientes</div>
+      <Header title="Cocina - Pedidos Pendientes" />
+      <div style={{ background: '#16a34a', color: 'white', padding: '8px 20px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 24px', borderRadius: 8, textAlign: 'center' }}>
+          <span style={{ fontSize: 28, fontWeight: 'bold' }}>{totalPending}</span>
+          <span style={{ fontSize: 13, marginLeft: 8, opacity: 0.9 }}>Pendientes</span>
         </div>
       </div>
 

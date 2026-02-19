@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRestaurant } from '../../context/RestaurantContext';
+import Header from '../../components/Header';
 
 export default function Cajero() {
   const { orders, paidBills, payOrder } = useRestaurant();
@@ -58,14 +59,11 @@ export default function Cajero() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f3ff' }}>
-      <div style={{ background: '#7c3aed', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 'bold', margin: 0 }}>Caja</h1>
-          <p style={{ margin: 0, fontSize: 14, opacity: 0.8 }}>Sistema de Cobro</p>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, fontWeight: 'bold' }}>${getDayTotal()}</div>
-          <div style={{ fontSize: 12 }}>Total del dia</div>
+      <Header title="Caja - Sistema de Cobro" />
+      <div style={{ background: '#7c3aed', color: 'white', padding: '8px 20px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 24px', borderRadius: 8, textAlign: 'center' }}>
+          <span style={{ fontSize: 28, fontWeight: 'bold' }}>${getDayTotal()}</span>
+          <span style={{ fontSize: 13, marginLeft: 8, opacity: 0.9 }}>Total del dia</span>
         </div>
       </div>
 

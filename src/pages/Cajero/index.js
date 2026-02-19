@@ -54,7 +54,6 @@ export default function Cajero() {
   const total = showPayModal ? getTotal(showPayModal) : 0;
   const change = getChange(total);
   const clientPaysNum = parseFloat(clientPays) || 0;
-  const canConfirmChange = clientPaysNum >= total && !changeGiven;
   const canPay = paymentMethod === 'tarjeta' || (paymentMethod === 'efectivo' && changeGiven);
 
   return (

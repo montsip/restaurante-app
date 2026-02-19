@@ -113,4 +113,80 @@ public class OrdenesController : ControllerBase
 
         return NoContent();
     }
+
+    // POST: api/ordenes/5/detalles (agregar items a orden existente)
+    [HttpPost("{id}/detalles")]
+    public async Task<IActionResult> AddDetalles(int id, List<OrdenDetalle> detalles)
+    {
+        var orden = await _context.Ordenes.FindAsync(id);
+        if (orden == null) return NotFound();
+
+        foreach (var detalle in detalles)
+        {
+            detalle.OrdenId = id;
+            _context.OrdenDetalles.Add(detalle);
+        }
+        await _context.SaveChangesAsync();
+
+        var ordenCompleta = await _context.Ordenes
+            .Include(o => o.Detalles)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        await _hub.Clients.All.SendAsync("NuevoPedido", ordenCompleta);
+
+        return NoContent();
+    }
+
+    // GET: api/ordenes/reportes?dias=1
+    [HttpGet("reportes")]
+    public async Task<ActionResult> GetReportes([FromQuery] int dias = 1)
+    {
+        var desde = DateTime.Today.AddDays(-(dias - 1));
+        var hasta = DateTime.Today.AddDays(1);
+
+        var pagadas = await _context.Ordenes
+            .Include(o => o.Detalles)
+            .Where(o => o.Estado == "pagada" && o.FechaHora >= desde && o.FechaHora < hasta)
+            .ToListAsync();
+
+        var totalVentas = pagadas.Sum(o => o.Detalles.Sum(d => d.Precio * d.Cantidad));
+        var totalEfectivo = pagadas.Where(o => o.MetodoPago == "efectivo")
+            .Sum(o => o.Detalles.Sum(d => d.Precio * d.Cantidad));
+        var totalTarjeta = pagadas.Where(o => o.MetodoPago == "tarjeta")
+            .Sum(o => o.Detalles.Sum(d => d.Precio * d.Cantidad));
+
+        var platillos = pagadas
+            .SelectMany(o => o.Detalles)
+            .GroupBy(d => d.NombrePlatillo)
+            .Select(g => new {
+                nombre = g.Key,
+                cantidad = g.Sum(d => d.Cantidad),
+                total = g.Sum(d => d.Precio * d.Cantidad)
+            })
+            .OrderByDescending(p => p.cantidad)
+            .Take(10)
+            .ToList();
+
+        var porMesero = pagadas
+            .GroupBy(o => o.Mesero)
+            .Select(g => new {
+                mesero = g.Key,
+                mesas = g.Count(),
+                total = g.Sum(o => o.Detalles.Sum(d => d.Precio * d.Cantidad))
+            })
+            .OrderByDescending(m => m.total)
+            .ToList();
+
+        return Ok(new {
+            desde = desde.ToString("yyyy-MM-dd"),
+            hasta = DateTime.Today.ToString("yyyy-MM-dd"),
+            dias,
+            totalVentas,
+            totalEfectivo,
+            totalTarjeta,
+            mesasAtendidas = pagadas.Count,
+            platillosMasVendidos = platillos,
+            ventasPorMesero = porMesero
+        });
+    }
 }

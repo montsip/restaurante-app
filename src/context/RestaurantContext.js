@@ -43,6 +43,8 @@ const mapPaidBill = (o) => {
     table: o.mesa,
     waiter: o.mesero,
     total: detalles.reduce((sum, d) => sum + Number(d.precio) * d.cantidad, 0),
+    propina: Number(o.propina) || 0,
+    personas: o.personas || null,
     method: o.metodoPago,
     paidAt: new Date(o.fechaHora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
     items: detalles.map(d => ({
@@ -177,11 +179,11 @@ export const RestaurantProvider = ({ children }) => {
     // El estado se actualiza via SignalR CuentaSolicitada
   };
 
-  const payOrder = async (orderId, method) => {
+  const payOrder = async (orderId, method, propina = 0, personas = null) => {
     await fetch(`${API}/api/Ordenes/${orderId}/pagar`, {
       method: 'PUT',
       headers: getHeaders(),
-      body: JSON.stringify(method)
+      body: JSON.stringify({ metodoPago: method, propina, personas })
     });
     // Actualización local: mover de orders a paidBills
     const order = orders.find(o => o.id === orderId);
@@ -190,6 +192,7 @@ export const RestaurantProvider = ({ children }) => {
       setPaidBills(prev => [...prev, {
         ...order,
         total,
+        propina,
         method,
         paidAt: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
       }]);

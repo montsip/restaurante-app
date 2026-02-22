@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRestaurant } from '../../context/RestaurantContext';
 import Header from '../../components/Header';
+import { playBillRequested } from '../../utils/sounds';
 
 export default function Cajero() {
   const { orders, paidBills, payOrder } = useRestaurant();
@@ -8,14 +9,67 @@ export default function Cajero() {
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [clientPays, setClientPays] = useState('');
   const [changeGiven, setChangeGiven] = useState(false);
+  const [tipOption, setTipOption] = useState('0');
+  const [customTip, setCustomTip] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
+  const [dividirCuenta, setDividirCuenta] = useState(false);
+  const [numPersonas, setNumPersonas] = useState(2);
+  const [justPaid, setJustPaid] = useState(null);
+
+  const billRequestedCount = orders.filter(o => o.billRequested).length;
+  const prevBillCount = useRef(null);
+  useEffect(() => {
+    if (prevBillCount.current !== null && billRequestedCount > prevBillCount.current) {
+      playBillRequested();
+    }
+    prevBillCount.current = billRequestedCount;
+  }, [billRequestedCount]);
+
+  const printTicket = (bill) => {
+    const w = window.open('', '_blank', 'width=380,height=620');
+    w.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="utf-8"><title>Ticket ${bill.table}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 12px; width: 280px; margin: 0 auto; padding: 12px; }
+        .c { text-align: center; }
+        .d { border-top: 1px dashed #000; margin: 6px 0; }
+        .r { display: flex; justify-content: space-between; }
+        .b { font-weight: bold; }
+        @media print { @page { margin: 0; } }
+      </style>
+    </head><body>
+      <div class="c b" style="font-size:15px">RESTAURANTE</div>
+      <div class="c">================================</div>
+      <div class="r"><span>Mesa:</span><span>${bill.table}</span></div>
+      <div class="r"><span>Mesero:</span><span>${bill.waiter}</span></div>
+      <div class="r"><span>Fecha:</span><span>${bill.paidAt}</span></div>
+      <div class="d"></div>
+      <div class="r b"><span>CANT</span><span style="flex:1;text-align:center">DESCRIPCION</span><span>TOTAL</span></div>
+      <div class="d"></div>
+      ${bill.items.map(i => `<div class="r"><span>${i.quantity}x</span><span style="flex:1;padding:0 6px">${i.name}</span><span>$${i.price * i.quantity}</span></div>`).join('')}
+      <div class="d"></div>
+      <div class="r"><span>Subtotal:</span><span>$${bill.subtotal}</span></div>
+      ${bill.tipAmount > 0 ? `<div class="r"><span>Propina:</span><span>+$${bill.tipAmount}</span></div>` : ''}
+      <div class="r b" style="font-size:14px"><span>TOTAL:</span><span>$${bill.total}</span></div>
+      <div class="d"></div>
+      <div class="r"><span>Metodo:</span><span>${bill.method === 'efectivo' ? 'Efectivo' : 'Tarjeta'}</span></div>
+      ${bill.personas ? `<div class="r"><span>Division:</span><span>${bill.personas} personas &bull; $${bill.totalPorPersona}/c.u.</span></div>` : ''}
+      <div class="d"></div>
+      <div class="c" style="margin-top:8px">Gracias por su visita!</div>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 250);
+  };
 
   const pendingBills = orders.filter(o => o.billRequested);
   const getTotal = (order) => order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const getDayTotal = () => paidBills.reduce((sum, b) => sum + b.total, 0);
+  const getTipTotal = () => paidBills.reduce((sum, b) => sum + (b.propina || 0), 0);
   const getCashTotal = () => paidBills.filter(b => b.method === 'efectivo').reduce((sum, b) => sum + b.total, 0);
   const getCardTotal = () => paidBills.filter(b => b.method === 'tarjeta').reduce((sum, b) => sum + b.total, 0);
-  const getChange = (total) => Math.max(0, (parseFloat(clientPays) || 0) - total);
+  const getChange = (subtotal, tipAmt) => Math.max(0, (parseFloat(clientPays) || 0) - (subtotal + tipAmt));
 
   const getTopDishes = () => {
     const counts = {};
@@ -37,6 +91,10 @@ export default function Cajero() {
     setPaymentMethod('efectivo');
     setClientPays('');
     setChangeGiven(false);
+    setTipOption('0');
+    setCustomTip('');
+    setDividirCuenta(false);
+    setNumPersonas(2);
   };
 
   const handleConfirmChange = () => {
@@ -44,17 +102,44 @@ export default function Cajero() {
   };
 
   const handlePay = () => {
-    payOrder(showPayModal.id, paymentMethod);
+    const billData = {
+      table: showPayModal.table,
+      waiter: showPayModal.waiter,
+      items: showPayModal.items,
+      subtotal,
+      tipAmount,
+      total,
+      method: paymentMethod,
+      personas: dividirCuenta ? numPersonas : null,
+      totalPorPersona: totalPorPersona || null,
+      paidAt: new Date().toLocaleString('es-MX', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }),
+    };
+    payOrder(showPayModal.id, paymentMethod, tipAmount, dividirCuenta ? numPersonas : null);
+    setJustPaid(billData);
     setShowPayModal(null);
     setClientPays('');
     setChangeGiven(false);
     setPaymentMethod('efectivo');
+    setTipOption('0');
+    setCustomTip('');
+    setDividirCuenta(false);
+    setNumPersonas(2);
   };
 
-  const total = showPayModal ? getTotal(showPayModal) : 0;
-  const change = getChange(total);
+  const subtotal = showPayModal ? getTotal(showPayModal) : 0;
+  const tipAmount = tipOption === 'otro'
+    ? (parseFloat(customTip) || 0)
+    : Math.round(subtotal * parseFloat(tipOption || 0)) / 100;
+  const total = subtotal + tipAmount;
+  const change = getChange(subtotal, tipAmount);
   const clientPaysNum = parseFloat(clientPays) || 0;
   const canPay = paymentMethod === 'tarjeta' || (paymentMethod === 'efectivo' && changeGiven);
+  const totalPorPersona = dividirCuenta && numPersonas > 1
+    ? Math.ceil(total / numPersonas)
+    : null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f3ff' }}>
@@ -82,6 +167,10 @@ export default function Cajero() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 22, fontWeight: 'bold', color: '#7c3aed' }}>${getCardTotal()}</div>
           <div style={{ fontSize: 12, color: '#6b7280' }}>💳 Tarjeta</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 'bold', color: '#16a34a' }}>${getTipTotal()}</div>
+          <div style={{ fontSize: 12, color: '#6b7280' }}>🤝 Propinas</div>
         </div>
       </div>
 
@@ -166,12 +255,27 @@ export default function Cajero() {
                         <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>{bill.paidAt}</p>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 22, fontWeight: 'bold', color: '#16a34a' }}>${bill.total}</div>
+                        <div style={{ fontSize: 22, fontWeight: 'bold', color: '#16a34a' }}>${bill.total + (bill.propina || 0)}</div>
                         <span style={{ fontSize: 12, padding: '3px 8px', borderRadius: 12, color: 'white', background: bill.method === 'efectivo' ? '#2563eb' : '#7c3aed' }}>
                           {bill.method === 'efectivo' ? '💵 Efectivo' : '💳 Tarjeta'}
                         </span>
                       </div>
                     </div>
+                    <button onClick={() => printTicket({
+                        table: bill.table,
+                        waiter: bill.waiter,
+                        items: bill.items,
+                        subtotal: bill.total,
+                        tipAmount: bill.propina || 0,
+                        total: bill.total + (bill.propina || 0),
+                        method: bill.method,
+                        personas: bill.personas || null,
+                        totalPorPersona: bill.personas ? Math.ceil((bill.total + (bill.propina || 0)) / bill.personas) : null,
+                        paidAt: bill.paidAt,
+                      })}
+                      style={{ marginTop: 10, width: '100%', padding: '7px 0', borderRadius: 6, border: 'none', background: '#1d4ed8', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      🖨️ Imprimir ticket
+                    </button>
                   </div>
                 ))}
               </div>
@@ -186,6 +290,7 @@ export default function Cajero() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
               {[
                 { label: 'Total del dia', value: '$' + getDayTotal(), color: '#7c3aed' },
+                { label: 'Propinas', value: '$' + getTipTotal(), color: '#16a34a' },
                 { label: 'Total efectivo', value: '$' + getCashTotal(), color: '#2563eb' },
                 { label: 'Total tarjeta', value: '$' + getCardTotal(), color: '#7c3aed' },
                 { label: 'Mesas atendidas', value: paidBills.length, color: '#16a34a' },
@@ -271,9 +376,74 @@ export default function Cajero() {
               <button onClick={() => setShowPayModal(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7280' }}>×</button>
             </div>
 
-            <div style={{ background: '#f5f3ff', borderRadius: 8, padding: 16, textAlign: 'center', marginBottom: 16 }}>
-              <p style={{ margin: '0 0 4px', color: '#6b7280', fontSize: 14 }}>Total a cobrar:</p>
-              <p style={{ margin: 0, fontSize: 40, fontWeight: 'bold', color: '#7c3aed' }}>${total}</p>
+            <div style={{ background: '#f5f3ff', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
+                <span>Subtotal:</span><span>${subtotal}</span>
+              </div>
+              {tipAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#16a34a', marginBottom: 4 }}>
+                  <span>Propina:</span><span>+${tipAmount}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 22, color: '#7c3aed', borderTop: '1px solid #ddd6fe', paddingTop: 8, marginTop: 4 }}>
+                <span>Total:</span><span>${total}</span>
+              </div>
+            </div>
+
+            <p style={{ fontWeight: 600, marginBottom: 8 }}>Propina:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
+              {[{ label: 'Sin', val: '0' }, { label: '10%', val: '10' }, { label: '15%', val: '15' }, { label: '20%', val: '20' }, { label: 'Otro', val: 'otro' }].map(opt => (
+                <button key={opt.val} onClick={() => { setTipOption(opt.val); setCustomTip(''); }}
+                  style={{ padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                    background: tipOption === opt.val ? '#16a34a' : '#f3f4f6',
+                    color: tipOption === opt.val ? 'white' : '#374151' }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {tipOption === 'otro' && (
+              <input type="number" value={customTip} onChange={e => setCustomTip(e.target.value)}
+                placeholder="Monto de propina $" min="0"
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '2px solid #bbf7d0', fontSize: 15, boxSizing: 'border-box', marginBottom: 10 }} />
+            )}
+
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => { setDividirCuenta(!dividirCuenta); setNumPersonas(2); }}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: 8, border: 'none',
+                  cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                  background: dividirCuenta ? '#0ea5e9' : '#f3f4f6',
+                  color: dividirCuenta ? 'white' : '#374151'
+                }}>
+                {dividirCuenta ? '👥 Dividiendo cuenta' : '👥 Dividir cuenta'}
+              </button>
+              {dividirCuenta && (
+                <div style={{ marginTop: 10, background: '#f0f9ff', borderRadius: 8, padding: 12, border: '1px solid #bae6fd' }}>
+                  <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13, color: '#0369a1' }}>
+                    ¿Entre cuántas personas?
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button onClick={() => setNumPersonas(Math.max(2, numPersonas - 1))}
+                      style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#0ea5e9', color: 'white', fontSize: 20, cursor: 'pointer', fontWeight: 'bold' }}>
+                      −
+                    </button>
+                    <span style={{ fontSize: 28, fontWeight: 'bold', minWidth: 32, textAlign: 'center' }}>
+                      {numPersonas}
+                    </span>
+                    <button onClick={() => setNumPersonas(numPersonas + 1)}
+                      style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#0ea5e9', color: 'white', fontSize: 20, cursor: 'pointer', fontWeight: 'bold' }}>
+                      +
+                    </button>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: '#0369a1' }}>Por persona</div>
+                      <div style={{ fontSize: 22, fontWeight: 'bold', color: '#0369a1' }}>
+                        ${totalPorPersona}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <p style={{ fontWeight: 600, marginBottom: 8 }}>Metodo de pago:</p>
@@ -326,6 +496,26 @@ export default function Cajero() {
               style={{ width: '100%', padding: 14, borderRadius: 8, border: 'none', fontWeight: 'bold', fontSize: 16, cursor: canPay ? 'pointer' : 'not-allowed',
                 background: canPay ? '#22c55e' : '#d1d5db', color: 'white' }}>
               ✓ Confirmar Pago - ${total} registrado
+            </button>
+          </div>
+        </div>
+      )}
+
+      {justPaid && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 60 }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 28, maxWidth: 320, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 48 }}>✅</div>
+            <h2 style={{ margin: '12px 0 4px' }}>¡Pago registrado!</h2>
+            <p style={{ color: '#6b7280', marginBottom: 20 }}>
+              {justPaid.table} — ${justPaid.total}
+            </p>
+            <button onClick={() => printTicket(justPaid)}
+              style={{ width: '100%', padding: 12, marginBottom: 10, borderRadius: 8, border: 'none', background: '#1d4ed8', color: 'white', fontWeight: 'bold', fontSize: 15, cursor: 'pointer' }}>
+              🖨️ Imprimir ticket
+            </button>
+            <button onClick={() => setJustPaid(null)}
+              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #d1d5db', background: 'white', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+              Cerrar
             </button>
           </div>
         </div>

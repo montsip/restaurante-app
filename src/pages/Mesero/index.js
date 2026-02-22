@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRestaurant, menu } from '../../context/RestaurantContext';
 import { useAuth } from '../../context/AuthContext';
 import Header from '../../components/Header';
+import { playItemReady } from '../../utils/sounds';
 
 const TOTAL_MESAS = 12;
 const mesas = Array.from({ length: TOTAL_MESAS }, (_, i) => `Mesa ${i + 1}`);
@@ -31,6 +32,17 @@ export default function Mesero() {
   const myOrders = user.rol === 'Admin'
     ? orders
     : orders.filter(o => o.waiter === user.nombreCompleto);
+
+  const readyCount = orders.reduce((sum, o) =>
+    sum + o.items.filter(i => i.status === 'ready').length, 0);
+
+  const prevReady = useRef(null);
+  useEffect(() => {
+    if (prevReady.current !== null && readyCount > prevReady.current) {
+      playItemReady();
+    }
+    prevReady.current = readyCount;
+  }, [readyCount]);
 
   const getTableStatus = (mesa) => {
     const order = orders.find(o => o.table === mesa);

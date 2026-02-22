@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRestaurant } from '../../context/RestaurantContext';
 import Header from '../../components/Header';
+import { playNewOrder } from '../../utils/sounds';
 
 export default function Barra() {
   const { orders, markItemReady } = useRestaurant();
@@ -11,6 +12,14 @@ export default function Barra() {
   })).filter(order => order.items.length > 0);
 
   const totalPending = pendingOrders.reduce((sum, o) => sum + o.items.length, 0);
+
+  const prevCount = useRef(null);
+  useEffect(() => {
+    if (prevCount.current !== null && totalPending > prevCount.current) {
+      playNewOrder();
+    }
+    prevCount.current = totalPending;
+  }, [totalPending]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#eff6ff' }}>

@@ -8,6 +8,7 @@ import Cocina from './pages/Cocina';
 import Barra from './pages/Barra';
 import Cajero from './pages/Cajero';
 import Admin from './pages/Admin';
+import OfflineBanner from './components/OfflineBanner';
 import './App.css';
 
 // Componente para proteger rutas
@@ -37,7 +38,9 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
+    <>
+      <OfflineBanner />
+      <Routes>
       <Route
         path="/login"
         element={!user ? <Login /> : <Navigate to={user.rol === 'Admin' ? '/admin' : `/${user.rol.toLowerCase()}`} replace />}
@@ -95,6 +98,7 @@ function AppRoutes() {
 
       <Route path="*" element={<Navigate to={user ? (user.rol === 'Admin' ? '/admin' : `/${user.rol.toLowerCase()}`) : "/login"} replace />} />
     </Routes>
+    </>
   );
 }
 

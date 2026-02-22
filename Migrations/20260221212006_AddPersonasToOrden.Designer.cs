@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RestauranteAPI.Data;
 
@@ -10,74 +11,14 @@ using RestauranteAPI.Data;
 namespace RestauranteAPI.Migrations
 {
     [DbContext(typeof(RestauranteContext))]
-    partial class RestauranteContextModelSnapshot : ModelSnapshot
+    [Migration("20260221212006_AddPersonasToOrden")]
+    partial class AddPersonasToOrden
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
-
-            modelBuilder.Entity("RestauranteAPI.Models.Insumo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("Activo")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("StockActual")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("StockMinimo")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Unidad")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Insumos");
-                });
-
-            modelBuilder.Entity("RestauranteAPI.Models.MovimientoInventario", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("Cantidad")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("FechaHora")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("InsumoId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Motivo")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Usuario")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InsumoId");
-
-                    b.ToTable("MovimientosInventario");
-                });
 
             modelBuilder.Entity("RestauranteAPI.Models.Orden", b =>
                 {
@@ -218,17 +159,6 @@ namespace RestauranteAPI.Migrations
                     b.ToTable("Usuarios");
                 });
 
-            modelBuilder.Entity("RestauranteAPI.Models.MovimientoInventario", b =>
-                {
-                    b.HasOne("RestauranteAPI.Models.Insumo", "Insumo")
-                        .WithMany("Movimientos")
-                        .HasForeignKey("InsumoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Insumo");
-                });
-
             modelBuilder.Entity("RestauranteAPI.Models.OrdenDetalle", b =>
                 {
                     b.HasOne("RestauranteAPI.Models.Orden", "Orden")
@@ -238,11 +168,6 @@ namespace RestauranteAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Orden");
-                });
-
-            modelBuilder.Entity("RestauranteAPI.Models.Insumo", b =>
-                {
-                    b.Navigation("Movimientos");
                 });
 
             modelBuilder.Entity("RestauranteAPI.Models.Orden", b =>

@@ -42,8 +42,16 @@ builder.Services.AddCors(options =>
 });
 
 // SignalR para tiempo real
-builder.Services.AddSignalR();
-builder.Services.AddControllers();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options => {
+        options.PayloadSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.PayloadSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
+builder.Services.AddControllers()
+    .AddJsonOptions(o => {
+        o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        o.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

@@ -50,10 +50,14 @@ public class OrdenesController : ControllerBase
         _context.Ordenes.Add(orden);
         await _context.SaveChangesAsync();
 
-        // Notificar a cocina y barra via SignalR
-        await _hub.Clients.All.SendAsync("NuevoPedido", orden);
+        // Recargar con detalles para SignalR
+        var ordenCompleta = await _context.Ordenes
+            .Include(o => o.Detalles)
+            .FirstOrDefaultAsync(o => o.Id == orden.Id);
 
-        return CreatedAtAction(nameof(GetOrden), new { id = orden.Id }, orden);
+        await _hub.Clients.All.SendAsync("NuevoPedido", ordenCompleta);
+
+        return CreatedAtAction(nameof(GetOrden), new { id = orden.Id }, ordenCompleta);
     }
 
     // GET: api/ordenes/5
@@ -102,13 +106,15 @@ public class OrdenesController : ControllerBase
 
     // PUT: api/ordenes/5/pagar
     [HttpPut("{id}/pagar")]
-    public async Task<IActionResult> PagarOrden(int id, [FromBody] string metodoPago)
+    public async Task<IActionResult> PagarOrden(int id, [FromBody] PagarRequest req)
     {
         var orden = await _context.Ordenes.FindAsync(id);
         if (orden == null) return NotFound();
 
         orden.Estado = "pagada";
-        orden.MetodoPago = metodoPago;
+        orden.MetodoPago = req.MetodoPago;
+        orden.Propina = req.Propina;
+        orden.Personas = req.Personas;
         await _context.SaveChangesAsync();
 
         return NoContent();
@@ -150,6 +156,7 @@ public class OrdenesController : ControllerBase
             .ToListAsync();
 
         var totalVentas = pagadas.Sum(o => o.Detalles.Sum(d => d.Precio * d.Cantidad));
+        var totalPropinas = pagadas.Sum(o => o.Propina);
         var totalEfectivo = pagadas.Where(o => o.MetodoPago == "efectivo")
             .Sum(o => o.Detalles.Sum(d => d.Precio * d.Cantidad));
         var totalTarjeta = pagadas.Where(o => o.MetodoPago == "tarjeta")
@@ -182,6 +189,7 @@ public class OrdenesController : ControllerBase
             hasta = DateTime.Today.ToString("yyyy-MM-dd"),
             dias,
             totalVentas,
+            totalPropinas,
             totalEfectivo,
             totalTarjeta,
             mesasAtendidas = pagadas.Count,
@@ -190,3 +198,5 @@ public class OrdenesController : ControllerBase
         });
     }
 }
+
+public record PagarRequest(string MetodoPago, decimal Propina, int? Personas);

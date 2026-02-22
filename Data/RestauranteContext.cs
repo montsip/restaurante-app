@@ -11,4 +11,6 @@ public class RestauranteContext : DbContext
     public DbSet<Orden> Ordenes { get; set; }
     public DbSet<OrdenDetalle> OrdenDetalles { get; set; }
     public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<Insumo> Insumos { get; set; }
+    public DbSet<MovimientoInventario> MovimientosInventario { get; set; }
 }
